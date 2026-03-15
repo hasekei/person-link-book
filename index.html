@@ -483,7 +483,10 @@
         <input type="text" class="input" id="yomiInput" placeholder="例：やまだ たろう">
       </div>
       <div>
-        <div class="field-label">タグ</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="field-label" style="margin-bottom:0">タグ</div>
+          <button class="btn-sm" id="tagEditToggle" style="background:var(--gray-100);color:var(--gray-600);font-size:12px;padding:4px 10px" onclick="toggleTagEditMode()">タグを削除</button>
+        </div>
         <div class="tag-select-area" id="tagSelectArea"></div>
         <div class="new-tag-row">
           <input type="text" class="new-tag-input" id="newTagInput" placeholder="新しいタグを入力">
@@ -688,6 +691,11 @@ function openModal(id = null) {
     }
   }
 
+  tagEditMode = false;
+  const btn = document.getElementById('tagEditToggle');
+  btn.textContent = 'タグを削除';
+  btn.style.background = 'var(--gray-100)';
+  btn.style.color = 'var(--gray-600)';
   renderTagSelectArea();
   renderUrlFields();
   modal.classList.add('open');
@@ -706,12 +714,45 @@ function handleOverlayClick(e) {
 }
 
 // ========== タグ選択エリア ==========
+let tagEditMode = false;
+
+function toggleTagEditMode() {
+  tagEditMode = !tagEditMode;
+  const btn = document.getElementById('tagEditToggle');
+  btn.textContent = tagEditMode ? '完了' : 'タグを削除';
+  btn.style.background = tagEditMode ? 'var(--danger-light)' : 'var(--gray-100)';
+  btn.style.color = tagEditMode ? 'var(--danger)' : 'var(--gray-600)';
+  renderTagSelectArea();
+}
+
 function renderTagSelectArea() {
   const area = document.getElementById('tagSelectArea');
+  if (allTags.length === 0) {
+    area.innerHTML = '<span style="font-size:13px;color:var(--gray-400)">タグがありません</span>';
+    return;
+  }
   area.innerHTML = allTags.map(tag => {
     const sel = selectedTags.includes(tag);
+    if (tagEditMode) {
+      return `<span class="tag-select-chip" style="border-color:var(--danger);color:var(--danger);gap:6px">
+        ${escapeHtml(tag)}
+        <span onclick="deleteTag('${escapeHtml(tag)}')" style="font-size:14px;font-weight:700;line-height:1">×</span>
+      </span>`;
+    }
     return `<span class="tag-select-chip${sel?' selected':''}" onclick="toggleTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</span>`;
   }).join('');
+}
+
+function deleteTag(tag) {
+  if (!confirm(`タグ「${tag}」を削除しますか？\n（このタグが付いている人物からも外れます）`)) return;
+  allTags = allTags.filter(t => t !== tag);
+  saveTags(allTags);
+  // 全人物からも該当タグを除去
+  persons = persons.map(p => ({ ...p, tags: (p.tags || []).filter(t => t !== tag) }));
+  save(persons);
+  selectedTags = selectedTags.filter(t => t !== tag);
+  renderTagSelectArea();
+  renderTagFilters();
 }
 
 function toggleTag(tag) {
