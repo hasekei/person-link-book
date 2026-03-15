@@ -42,7 +42,7 @@
       background: var(--gray-100);
       color: var(--gray-800);
       min-height: 100vh;
-      padding-bottom: 80px;
+      padding-bottom: 140px;
     }
 
     /* ヘッダー */
@@ -242,7 +242,7 @@
     /* FAB */
     .fab {
       position: fixed;
-      bottom: 24px;
+      bottom: 80px;
       right: 20px;
       width: 56px;
       height: 56px;
@@ -442,6 +442,82 @@
 
     .highlight { background: #fef08a; border-radius: 2px; }
 
+    /* ボトムナビ */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: white;
+      border-top: 1px solid var(--gray-200);
+      display: flex;
+      z-index: 150;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .nav-tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      color: var(--gray-400);
+      font-size: 10px;
+      font-weight: 600;
+      transition: color 0.15s;
+    }
+    .nav-tab.active { color: var(--primary); }
+    .nav-tab-icon { font-size: 22px; line-height: 1; }
+
+    /* URLブックマークカード */
+    .url-bm-card {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .url-bm-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px 8px;
+      gap: 8px;
+    }
+    .url-bm-meta { flex: 1; min-width: 0; }
+    .url-bm-memo {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gray-900);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .url-bm-addr {
+      font-size: 11px;
+      color: var(--primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+    .url-bm-link {
+      display: flex;
+      align-items: center;
+      padding: 10px 14px;
+      border-top: 1px solid var(--gray-100);
+      text-decoration: none;
+      gap: 10px;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s;
+    }
+    .url-bm-link:active { background: var(--gray-50); }
+    .url-bm-link-text { font-size: 13px; color: var(--primary); font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
     /* タグフィルター行 */
     .tag-filter-row {
       display: flex;
@@ -507,27 +583,55 @@
   <div class="header-sub" id="headerSub">読み込み中...</div>
 </header>
 
-<div class="search-area">
-  <div class="search-input-wrap">
-    <span class="search-icon">🔍</span>
-    <input type="search" class="search-input" id="searchInput" placeholder="名前で検索（漢字・ひらがな・カタカナ）">
-  </div>
-  <div class="tag-filter-row">
-    <div class="tag-filter-scroll" id="tagFilterScroll">
-      <span class="tag-chip tag-chip-all active" data-tag="ALL" onclick="filterTag('ALL')">すべて</span>
+<!-- 人物ページ -->
+<div id="personPage">
+  <div class="search-area">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="search" class="search-input" id="searchInput" placeholder="名前で検索（漢字・ひらがな・カタカナ）">
     </div>
-    <button class="tag-mgmt-btn" id="tagMgmtBtn" onclick="openTagMgmt()">
-      タグ管理
-      <span class="unused-badge" id="unusedBadge" style="display:none"></span>
-    </button>
+    <div class="tag-filter-row">
+      <div class="tag-filter-scroll" id="tagFilterScroll">
+        <span class="tag-chip tag-chip-all active" onclick="filterTag('ALL')">すべて</span>
+      </div>
+      <button class="tag-mgmt-btn" id="tagMgmtBtn" onclick="openTagMgmt()">
+        タグ管理
+        <span class="unused-badge" id="unusedBadge" style="display:none"></span>
+      </button>
+    </div>
   </div>
+  <div class="result-count" id="resultCount"></div>
+  <div class="list" id="list"></div>
 </div>
 
-<div class="result-count" id="resultCount"></div>
+<!-- URLブックマークページ -->
+<div id="urlPage" style="display:none">
+  <div class="search-area">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="search" class="search-input" id="urlSearchInput" placeholder="メモ・URLで検索">
+    </div>
+    <div class="tag-filter-row">
+      <div class="tag-filter-scroll" id="urlTagFilterScroll">
+        <span class="tag-chip tag-chip-all active" onclick="filterUrlTag('ALL')">すべて</span>
+      </div>
+    </div>
+  </div>
+  <div class="result-count" id="urlResultCount"></div>
+  <div class="list" id="urlList"></div>
+</div>
 
-<div class="list" id="list"></div>
+<button class="fab" id="fab" onclick="onFabClick()">＋</button>
 
-<button class="fab" onclick="openModal()">＋</button>
+<!-- ボトムナビ -->
+<nav class="bottom-nav">
+  <button class="nav-tab active" id="navPerson" onclick="switchPage('person')">
+    <span class="nav-tab-icon">👤</span>人物
+  </button>
+  <button class="nav-tab" id="navUrl" onclick="switchPage('url')">
+    <span class="nav-tab-icon">🔗</span>URL
+  </button>
+</nav>
 
 <!-- 追加/編集モーダル -->
 <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
@@ -569,6 +673,38 @@
   </div>
 </div>
 
+<!-- URLブックマーク追加/編集モーダル -->
+<div class="modal-overlay" id="urlModalOverlay" onclick="handleUrlModalOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="urlModalTitle">URLを追加</span>
+      <button class="btn-icon" onclick="closeUrlModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div>
+        <div class="field-label">URL *</div>
+        <input type="url" class="input" id="urlBmInput" placeholder="https://...">
+      </div>
+      <div>
+        <div class="field-label">メモ（タイトル）</div>
+        <input type="text" class="input" id="urlBmMemoInput" placeholder="例：参考サイト、公式ページ など">
+      </div>
+      <div>
+        <div class="field-label">タグ</div>
+        <div class="tag-select-area" id="urlBmTagSelectArea"></div>
+        <div class="new-tag-row">
+          <input type="text" class="new-tag-input" id="urlBmNewTagInput" placeholder="新しいタグを入力">
+          <button class="btn-sm btn-sm-primary" onclick="addUrlBmNewTag()">追加</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeUrlModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveUrlBm()">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- タグ管理モーダル -->
 <div class="modal-overlay" id="tagMgmtOverlay" onclick="handleTagMgmtOverlayClick(event)">
   <div class="modal">
@@ -590,7 +726,7 @@
     <div class="confirm-msg" id="confirmMsg"></div>
     <div class="confirm-btns">
       <button class="btn btn-secondary" onclick="closeConfirm()">キャンセル</button>
-      <button class="btn" style="background:var(--danger);color:white" onclick="confirmDelete()">削除</button>
+      <button class="btn" id="confirmDeleteBtn" style="background:var(--danger);color:white" onclick="confirmDelete()">削除</button>
     </div>
   </div>
 </div>
@@ -613,14 +749,29 @@ function saveTags(tags) {
   localStorage.setItem(TAGS_KEY, JSON.stringify(tags));
 }
 
+const URLS_KEY = 'personLinkUrls';
+function loadUrls() { try { return JSON.parse(localStorage.getItem(URLS_KEY)) || []; } catch { return []; } }
+function saveUrls(data) { localStorage.setItem(URLS_KEY, JSON.stringify(data)); }
+
 let persons = load();
 let allTags = loadTags();
-let activeFilters = []; // 空=すべて、複数可（AND検索）
+let urlBookmarks = loadUrls();
+
+// 人物ページ
+let activeFilters = [];
 let searchQuery = '';
 let editingId = null;
 let deleteTargetId = null;
 let selectedTags = [];
 let urlFields = [];
+
+// URLページ
+let currentPage = 'person';
+let urlActiveFilters = [];
+let urlSearchQuery = '';
+let editingUrlId = null;
+let deleteUrlTargetId = null;
+let urlBmSelectedTags = [];
 
 // ========== ひらがな⇔カタカナ変換 ==========
 function toHira(str) {
@@ -841,6 +992,10 @@ document.getElementById('searchInput').addEventListener('input', e => {
   searchQuery = e.target.value.trim();
   renderList();
 });
+document.getElementById('urlSearchInput').addEventListener('input', e => {
+  urlSearchQuery = e.target.value.trim();
+  renderUrlList();
+});
 
 // ========== モーダル ==========
 function openModal(id = null) {
@@ -1024,6 +1179,199 @@ function confirmDelete() {
     );
     closeConfirm();
     render();
+  }
+}
+
+// ========== ページ切替 ==========
+function switchPage(page) {
+  currentPage = page;
+  document.getElementById('personPage').style.display = page === 'person' ? '' : 'none';
+  document.getElementById('urlPage').style.display = page === 'url' ? '' : 'none';
+  document.getElementById('navPerson').classList.toggle('active', page === 'person');
+  document.getElementById('navUrl').classList.toggle('active', page === 'url');
+  if (page === 'url') renderUrlPage();
+}
+
+function onFabClick() {
+  if (currentPage === 'url') openUrlModal();
+  else openModal();
+}
+
+// ========== URLブックマーク フィルタ ==========
+function filterUrlTag(tag) {
+  if (tag === 'ALL') {
+    urlActiveFilters = [];
+  } else {
+    const idx = urlActiveFilters.indexOf(tag);
+    if (idx === -1) urlActiveFilters.push(tag);
+    else urlActiveFilters.splice(idx, 1);
+  }
+  renderUrlPage();
+}
+
+// ========== URLブックマーク レンダリング ==========
+function renderUrlPage() {
+  renderUrlTagFilters();
+  renderUrlList();
+}
+
+function renderUrlTagFilters() {
+  const scroll = document.getElementById('urlTagFilterScroll');
+  const allActive = urlActiveFilters.length === 0;
+  scroll.innerHTML = `<span class="tag-chip tag-chip-all${allActive?' active':''}" onclick="filterUrlTag('ALL')">すべて</span>`;
+  allTags.forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip' + (urlActiveFilters.includes(tag) ? ' active' : '');
+    chip.textContent = tag;
+    chip.onclick = () => filterUrlTag(tag);
+    scroll.appendChild(chip);
+  });
+}
+
+function getFilteredUrls() {
+  return urlBookmarks.filter(u => {
+    const q = urlSearchQuery;
+    const textOk = !q || normalize(u.memo || '').includes(normalize(q)) || normalize(u.url || '').includes(normalize(q));
+    const tagOk = urlActiveFilters.length === 0 || urlActiveFilters.every(t => (u.tags || []).includes(t));
+    return textOk && tagOk;
+  });
+}
+
+function renderUrlList() {
+  const filtered = getFilteredUrls();
+  const list = document.getElementById('urlList');
+  const count = document.getElementById('urlResultCount');
+  count.textContent = `${filtered.length}件 表示中`;
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">${urlBookmarks.length === 0 ? '🔖' : '🔎'}</div><p>${urlBookmarks.length === 0 ? 'URLを追加してみましょう' : '該当するURLが見つかりません'}</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(u => {
+    const tags = (u.tags || []).map(t => `<span class="tag-badge">${escapeHtml(t)}</span>`).join('');
+    const displayUrl = u.url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    return `
+      <div class="url-bm-card">
+        <div class="url-bm-header">
+          <div class="url-bm-meta">
+            <div class="url-bm-memo">${escapeHtml(u.memo || u.url)}</div>
+            <div class="url-bm-addr">${escapeHtml(displayUrl)}</div>
+          </div>
+          <div class="card-actions">
+            <button class="btn-icon" onclick="openUrlEdit('${u.id}')">✏️</button>
+            <button class="btn-icon danger" onclick="openConfirmDeleteUrl('${u.id}')">🗑️</button>
+          </div>
+        </div>
+        ${tags ? `<div class="card-tags">${tags}</div>` : ''}
+        <a class="url-bm-link" href="${escapeHtml(u.url)}" target="_blank" rel="noopener">
+          <span class="url-bm-link-text">${escapeHtml(u.url)}</span>
+          <span class="url-arrow">›</span>
+        </a>
+      </div>`;
+  }).join('');
+}
+
+// ========== URLブックマーク モーダル ==========
+function openUrlModal(id = null) {
+  editingUrlId = id;
+  urlBmSelectedTags = [];
+  document.getElementById('urlModalTitle').textContent = id ? 'URLを編集' : 'URLを追加';
+  document.getElementById('urlBmInput').value = '';
+  document.getElementById('urlBmMemoInput').value = '';
+  document.getElementById('urlBmNewTagInput').value = '';
+
+  if (id) {
+    const u = urlBookmarks.find(x => x.id === id);
+    if (u) {
+      document.getElementById('urlBmInput').value = u.url;
+      document.getElementById('urlBmMemoInput').value = u.memo || '';
+      urlBmSelectedTags = [...(u.tags || [])];
+    }
+  }
+  renderUrlBmTagSelectArea();
+  document.getElementById('urlModalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('urlBmInput').focus(), 300);
+}
+
+function openUrlEdit(id) { openUrlModal(id); }
+
+function closeUrlModal() {
+  document.getElementById('urlModalOverlay').classList.remove('open');
+  editingUrlId = null;
+}
+
+function handleUrlModalOverlayClick(e) {
+  if (e.target === document.getElementById('urlModalOverlay')) closeUrlModal();
+}
+
+function renderUrlBmTagSelectArea() {
+  const area = document.getElementById('urlBmTagSelectArea');
+  if (allTags.length === 0) {
+    area.innerHTML = '<span style="font-size:13px;color:var(--gray-400)">タグがありません</span>';
+    return;
+  }
+  area.innerHTML = allTags.map(tag => {
+    const sel = urlBmSelectedTags.includes(tag);
+    return `<span class="tag-select-chip${sel?' selected':''}" onclick="toggleUrlBmTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</span>`;
+  }).join('');
+}
+
+function toggleUrlBmTag(tag) {
+  if (urlBmSelectedTags.includes(tag)) urlBmSelectedTags = urlBmSelectedTags.filter(t => t !== tag);
+  else urlBmSelectedTags.push(tag);
+  renderUrlBmTagSelectArea();
+}
+
+function addUrlBmNewTag() {
+  const input = document.getElementById('urlBmNewTagInput');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!allTags.includes(val)) { allTags.push(val); saveTags(allTags); }
+  if (!urlBmSelectedTags.includes(val)) urlBmSelectedTags.push(val);
+  input.value = '';
+  renderUrlBmTagSelectArea();
+}
+document.getElementById('urlBmNewTagInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addUrlBmNewTag(); }
+});
+
+function saveUrlBm() {
+  const url = document.getElementById('urlBmInput').value.trim();
+  if (!url) { alert('URLを入力してください'); return; }
+  const memo = document.getElementById('urlBmMemoInput').value.trim();
+
+  if (editingUrlId) {
+    const idx = urlBookmarks.findIndex(u => u.id === editingUrlId);
+    if (idx !== -1) urlBookmarks[idx] = { ...urlBookmarks[idx], url, memo, tags: [...urlBmSelectedTags] };
+  } else {
+    urlBookmarks.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+      url, memo, tags: [...urlBmSelectedTags]
+    });
+  }
+  saveUrls(urlBookmarks);
+  closeUrlModal();
+  renderUrlPage();
+}
+
+// ========== URLブックマーク 削除 ==========
+function openConfirmDeleteUrl(id) {
+  const u = urlBookmarks.find(x => x.id === id);
+  deleteUrlTargetId = id;
+  document.getElementById('confirmMsg').textContent = `「${u?.memo || u?.url}」を削除します。この操作は元に戻せません。`;
+  document.getElementById('confirmDeleteBtn').onclick = confirmDeleteUrl;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+
+function confirmDeleteUrl() {
+  if (deleteUrlTargetId) {
+    urlBookmarks = urlBookmarks.filter(u => u.id !== deleteUrlTargetId);
+    saveUrls(urlBookmarks);
+    deleteUrlTargetId = null;
+    document.getElementById('confirmDeleteBtn').onclick = confirmDelete;
+    closeConfirm();
+    renderUrlPage();
   }
 }
 
