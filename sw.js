@@ -1,5 +1,11 @@
-const CACHE = 'person-link-v1';
-const FILES = ['/', '/index.html', '/manifest.json'];
+const CACHE = 'person-link-v2';
+const BASE = '/person-link-book';
+const FILES = [
+  BASE + '/',
+  BASE + '/index.html',
+  BASE + '/manifest.json',
+  BASE + '/icon.png'
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
