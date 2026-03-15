@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="人物リンク帳">
+  <meta name="theme-color" content="#6366f1">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.png">
+  <title>人物リンク帳</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --primary-light: #e0e7ff;
+      --danger: #ef4444;
+      --danger-light: #fee2e2;
+      --success: #10b981;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      background: var(--gray-100);
+      color: var(--gray-800);
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* ヘッダー */
+    .header {
+      background: var(--primary);
+      color: white;
+      padding: 16px 16px 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-md);
+    }
+    .header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+    .header-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+    /* 検索エリア */
+    .search-area {
+      background: white;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .search-input-wrap {
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      padding: 10px 12px 10px 38px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-size: 15px;
+      background: var(--gray-50);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: var(--primary); background: white; }
+    .search-icon {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray-400);
+      font-size: 16px;
+    }
+    .tag-filter-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .tag-filter-scroll::-webkit-scrollbar { display: none; }
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1.5px solid var(--gray-200);
+      background: white;
+      color: var(--gray-600);
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tag-chip.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+    .tag-chip-all { background: var(--gray-800); border-color: var(--gray-800); color: white; }
+    .tag-chip-all.active { background: var(--gray-900); border-color: var(--gray-900); }
+
+    /* カウント */
+    .result-count {
+      padding: 8px 16px;
+      font-size: 12px;
+      color: var(--gray-500);
+    }
+
+    /* リスト */
+    .list { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+
+    /* カード */
+    .card {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: box-shadow 0.2s;
+    }
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 14px 14px 10px;
+      gap: 8px;
+    }
+    .card-name {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--gray-900);
+      flex: 1;
+    }
+    .card-actions { display: flex; gap: 6px; }
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 8px;
+      background: var(--gray-100);
+      color: var(--gray-500);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s;
+    }
+    .btn-icon:active { background: var(--gray-200); }
+    .btn-icon.danger:active { background: var(--danger-light); color: var(--danger); }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 0 14px 10px;
+    }
+    .tag-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+    }
+
+    .card-urls { border-top: 1px solid var(--gray-100); }
+    .url-item {
+      display: flex;
+      align-items: center;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--gray-100);
+      text-decoration: none;
+      color: inherit;
+      gap: 10px;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s;
+    }
+    .url-item:last-child { border-bottom: none; }
+    .url-item:active { background: var(--gray-50); }
+    .url-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--primary-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 15px;
+    }
+    .url-info { flex: 1; min-width: 0; }
+    .url-memo {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-800);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .url-addr {
+      font-size: 11px;
+      color: var(--primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+    .url-arrow { color: var(--gray-300); font-size: 12px; flex-shrink: 0; }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--gray-400);
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 15px; }
+
+    /* FAB */
+    .fab {
+      position: fixed;
+      bottom: 24px;
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 28px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      font-size: 24px;
+      box-shadow: var(--shadow-lg);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.1s;
+    }
+    .fab:active { transform: scale(0.93); }
+
+    /* モーダル */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 300;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 20px 20px 0 0;
+      width: 100%;
+      max-height: 92vh;
+      overflow-y: auto;
+      padding: 0 0 env(safe-area-inset-bottom, 16px);
+      animation: slideUp 0.25s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--gray-100);
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 10;
+    }
+    .modal-title { font-size: 17px; font-weight: 700; }
+    .modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 18px; }
+    .modal-footer { padding: 0 20px 16px; display: flex; gap: 10px; }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .input {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+      color: var(--gray-800);
+      background: var(--gray-50);
+    }
+    .input:focus { border-color: var(--primary); background: white; }
+
+    .tag-select-area {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .tag-select-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1.5px solid var(--gray-200);
+      background: white;
+      color: var(--gray-600);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.15s;
+    }
+    .tag-select-chip.selected {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+    .new-tag-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .new-tag-input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      outline: none;
+    }
+    .new-tag-input:focus { border-color: var(--primary); }
+
+    .url-list-edit { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+    .url-edit-item {
+      background: var(--gray-50);
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--gray-200);
+      overflow: hidden;
+    }
+    .url-edit-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .url-edit-label { font-size: 12px; font-weight: 600; color: var(--gray-400); }
+    .url-edit-fields { padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+    .url-edit-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+      background: white;
+    }
+    .url-edit-input:focus { border-color: var(--primary); }
+
+    .btn {
+      flex: 1;
+      padding: 13px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.8; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-secondary { background: var(--gray-100); color: var(--gray-700); }
+    .btn-sm {
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-sm-primary { background: var(--primary); color: white; }
+    .btn-sm-danger { background: var(--danger-light); color: var(--danger); }
+
+    /* 確認ダイアログ */
+    .confirm-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 400;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .confirm-overlay.open { display: flex; }
+    .confirm-dialog {
+      background: white;
+      border-radius: 16px;
+      padding: 24px 20px 16px;
+      width: 100%;
+      max-width: 320px;
+      text-align: center;
+    }
+    .confirm-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .confirm-msg { font-size: 14px; color: var(--gray-500); margin-bottom: 20px; }
+    .confirm-btns { display: flex; gap: 10px; }
+
+    .highlight { background: #fef08a; border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <h1>📇 人物リンク帳</h1>
+  <div class="header-sub" id="headerSub">読み込み中...</div>
+</header>
+
+<div class="search-area">
+  <div class="search-input-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="search" class="search-input" id="searchInput" placeholder="名前で検索（漢字・ひらがな・カタカナ）">
+  </div>
+  <div class="tag-filter-scroll" id="tagFilterScroll">
+    <span class="tag-chip tag-chip-all active" data-tag="ALL" onclick="filterTag('ALL')">すべて</span>
+  </div>
+</div>
+
+<div class="result-count" id="resultCount"></div>
+
+<div class="list" id="list"></div>
+
+<button class="fab" onclick="openModal()">＋</button>
+
+<!-- 追加/編集モーダル -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">人物を追加</span>
+      <button class="btn-icon" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div>
+        <div class="field-label">名前 *</div>
+        <input type="text" class="input" id="nameInput" placeholder="例：山田 太郎">
+      </div>
+      <div>
+        <div class="field-label">タグ</div>
+        <div class="tag-select-area" id="tagSelectArea"></div>
+        <div class="new-tag-row">
+          <input type="text" class="new-tag-input" id="newTagInput" placeholder="新しいタグを入力">
+          <button class="btn-sm btn-sm-primary" onclick="addNewTag()">追加</button>
+        </div>
+      </div>
+      <div>
+        <div class="field-label">URL一覧</div>
+        <div class="url-list-edit" id="urlListEdit"></div>
+        <button class="btn-sm btn-sm-primary" style="margin-top:8px" onclick="addUrlField()">＋ URLを追加</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="savePerson()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 削除確認ダイアログ -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-dialog">
+    <div class="confirm-title">削除しますか？</div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button class="btn btn-secondary" onclick="closeConfirm()">キャンセル</button>
+      <button class="btn" style="background:var(--danger);color:white" onclick="confirmDelete()">削除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== データ管理 ==========
+const STORAGE_KEY = 'personLinkBook';
+const TAGS_KEY = 'personLinkTags';
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+function save(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+function loadTags() {
+  try { return JSON.parse(localStorage.getItem(TAGS_KEY)) || []; } catch { return []; }
+}
+function saveTags(tags) {
+  localStorage.setItem(TAGS_KEY, JSON.stringify(tags));
+}
+
+let persons = load();
+let allTags = loadTags();
+let currentFilter = 'ALL';
+let searchQuery = '';
+let editingId = null;
+let deleteTargetId = null;
+let selectedTags = [];
+let urlFields = [];
+
+// ========== ひらがな⇔カタカナ変換 ==========
+function toHira(str) {
+  return str.replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+}
+function toKata(str) {
+  return str.replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60));
+}
+function normalize(str) {
+  return (str || '').toLowerCase();
+}
+function matchName(name, q) {
+  if (!q) return true;
+  const n = normalize(name);
+  const qH = normalize(toHira(q));
+  const qK = normalize(toKata(q));
+  const qN = normalize(q);
+  return n.includes(qH) || n.includes(qK) || n.includes(qN)
+    || toHira(n).includes(qH) || toKata(n).includes(qK);
+}
+
+// ========== フィルタ・検索 ==========
+function getFiltered() {
+  return persons.filter(p => {
+    const nameOk = matchName(p.name, searchQuery);
+    const tagOk = currentFilter === 'ALL' || (p.tags || []).includes(currentFilter);
+    return nameOk && tagOk;
+  });
+}
+
+// ========== レンダリング ==========
+function renderTagFilters() {
+  const scroll = document.getElementById('tagFilterScroll');
+  scroll.innerHTML = `<span class="tag-chip tag-chip-all${currentFilter==='ALL'?' active':''}" data-tag="ALL" onclick="filterTag('ALL')">すべて</span>`;
+  allTags.forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip' + (currentFilter === tag ? ' active' : '');
+    chip.textContent = tag;
+    chip.onclick = () => filterTag(tag);
+    scroll.appendChild(chip);
+  });
+}
+
+function escapeHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function highlightText(text, q) {
+  if (!q) return escapeHtml(text);
+  const escaped = escapeHtml(text);
+  const escapedQ = escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // ひらがな/カタカナ両対応
+  const qH = escapeHtml(toHira(q)).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const qK = escapeHtml(toKata(q)).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = [escapedQ, qH, qK].filter(Boolean).join('|');
+  try {
+    return escaped.replace(new RegExp(`(${pattern})`, 'gi'), '<mark class="highlight">$1</mark>');
+  } catch { return escaped; }
+}
+
+function renderList() {
+  const filtered = getFiltered();
+  const list = document.getElementById('list');
+  const count = document.getElementById('resultCount');
+  const headerSub = document.getElementById('headerSub');
+
+  headerSub.textContent = `${persons.length}人 登録中`;
+  count.textContent = `${filtered.length}件 表示中`;
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">${persons.length === 0 ? '📭' : '🔎'}</div><p>${persons.length === 0 ? '人物を追加してみましょう' : '該当する人物が見つかりません'}</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(p => {
+    const tags = (p.tags || []).map(t => `<span class="tag-badge">${escapeHtml(t)}</span>`).join('');
+    const urls = (p.urls || []).map(u => `
+      <a class="url-item" href="${escapeHtml(u.url)}" target="_blank" rel="noopener">
+        <div class="url-icon">🔗</div>
+        <div class="url-info">
+          <div class="url-memo">${escapeHtml(u.memo || u.url)}</div>
+          <div class="url-addr">${escapeHtml(u.url)}</div>
+        </div>
+        <span class="url-arrow">›</span>
+      </a>`).join('');
+
+    return `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-name">${highlightText(p.name, searchQuery)}</div>
+          <div class="card-actions">
+            <button class="btn-icon" onclick="openEdit('${p.id}')">✏️</button>
+            <button class="btn-icon danger" onclick="openConfirmDelete('${p.id}')">🗑️</button>
+          </div>
+        </div>
+        ${tags ? `<div class="card-tags">${tags}</div>` : ''}
+        ${urls ? `<div class="card-urls">${urls}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function render() {
+  renderTagFilters();
+  renderList();
+}
+
+// ========== フィルタ操作 ==========
+function filterTag(tag) {
+  currentFilter = tag;
+  render();
+}
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.trim();
+  renderList();
+});
+
+// ========== モーダル ==========
+function openModal(id = null) {
+  editingId = id;
+  selectedTags = [];
+  urlFields = [];
+  const modal = document.getElementById('modalOverlay');
+  document.getElementById('modalTitle').textContent = id ? '人物を編集' : '人物を追加';
+  document.getElementById('nameInput').value = '';
+  document.getElementById('newTagInput').value = '';
+
+  if (id) {
+    const p = persons.find(x => x.id === id);
+    if (p) {
+      document.getElementById('nameInput').value = p.name;
+      selectedTags = [...(p.tags || [])];
+      urlFields = (p.urls || []).map(u => ({ memo: u.memo || '', url: u.url || '' }));
+    }
+  }
+
+  renderTagSelectArea();
+  renderUrlFields();
+  modal.classList.add('open');
+  setTimeout(() => document.getElementById('nameInput').focus(), 300);
+}
+
+function openEdit(id) { openModal(id); }
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  editingId = null;
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+// ========== タグ選択エリア ==========
+function renderTagSelectArea() {
+  const area = document.getElementById('tagSelectArea');
+  area.innerHTML = allTags.map(tag => {
+    const sel = selectedTags.includes(tag);
+    return `<span class="tag-select-chip${sel?' selected':''}" onclick="toggleTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</span>`;
+  }).join('');
+}
+
+function toggleTag(tag) {
+  if (selectedTags.includes(tag)) {
+    selectedTags = selectedTags.filter(t => t !== tag);
+  } else {
+    selectedTags.push(tag);
+  }
+  renderTagSelectArea();
+}
+
+function addNewTag() {
+  const input = document.getElementById('newTagInput');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!allTags.includes(val)) {
+    allTags.push(val);
+    saveTags(allTags);
+  }
+  if (!selectedTags.includes(val)) selectedTags.push(val);
+  input.value = '';
+  renderTagSelectArea();
+}
+document.getElementById('newTagInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addNewTag(); }
+});
+
+// ========== URLフィールド ==========
+function renderUrlFields() {
+  const area = document.getElementById('urlListEdit');
+  area.innerHTML = urlFields.map((u, i) => `
+    <div class="url-edit-item">
+      <div class="url-edit-header">
+        <span class="url-edit-label">URL ${i + 1}</span>
+        <button class="btn-sm btn-sm-danger" onclick="removeUrlField(${i})">削除</button>
+      </div>
+      <div class="url-edit-fields">
+        <input type="text" class="url-edit-input" placeholder="メモ（任意）例：Twitter" value="${escapeHtml(u.memo)}" onchange="updateUrlField(${i},'memo',this.value)">
+        <input type="url" class="url-edit-input" placeholder="https://..." value="${escapeHtml(u.url)}" onchange="updateUrlField(${i},'url',this.value)" oninput="updateUrlField(${i},'url',this.value)">
+      </div>
+    </div>`).join('');
+}
+
+function addUrlField() {
+  urlFields.push({ memo: '', url: '' });
+  renderUrlFields();
+}
+
+function removeUrlField(i) {
+  urlFields.splice(i, 1);
+  renderUrlFields();
+}
+
+function updateUrlField(i, key, val) {
+  urlFields[i][key] = val;
+}
+
+// ========== 保存 ==========
+function savePerson() {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) { alert('名前を入力してください'); return; }
+
+  const validUrls = urlFields.filter(u => u.url.trim());
+
+  if (editingId) {
+    const idx = persons.findIndex(p => p.id === editingId);
+    if (idx !== -1) {
+      persons[idx] = { ...persons[idx], name, tags: [...selectedTags], urls: validUrls };
+    }
+  } else {
+    persons.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+      name,
+      tags: [...selectedTags],
+      urls: validUrls
+    });
+  }
+
+  save(persons);
+  closeModal();
+  render();
+}
+
+// ========== 削除 ==========
+function openConfirmDelete(id) {
+  const p = persons.find(x => x.id === id);
+  deleteTargetId = id;
+  document.getElementById('confirmMsg').textContent = `「${p?.name}」を削除します。この操作は元に戻せません。`;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('open');
+  deleteTargetId = null;
+}
+function confirmDelete() {
+  if (deleteTargetId) {
+    persons = persons.filter(p => p.id !== deleteTargetId);
+    save(persons);
+    closeConfirm();
+    render();
+  }
+}
+
+// ========== 初期化 ==========
+render();
+
+// Service Worker登録（PWAオフライン対応）
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
