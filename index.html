@@ -479,6 +479,10 @@
         <input type="text" class="input" id="nameInput" placeholder="例：山田 太郎">
       </div>
       <div>
+        <div class="field-label">よみがな <span style="font-weight:400;text-transform:none;font-size:11px;color:var(--gray-400)">（ひらがな・カタカナ検索用）</span></div>
+        <input type="text" class="input" id="yomiInput" placeholder="例：やまだ たろう">
+      </div>
+      <div>
         <div class="field-label">タグ</div>
         <div class="tag-select-area" id="tagSelectArea"></div>
         <div class="new-tag-row">
@@ -548,20 +552,29 @@ function toKata(str) {
 function normalize(str) {
   return (str || '').toLowerCase();
 }
-function matchName(name, q) {
+function matchName(name, yomi, q) {
   if (!q) return true;
-  const n = normalize(name);
   const qH = normalize(toHira(q));
   const qK = normalize(toKata(q));
   const qN = normalize(q);
-  return n.includes(qH) || n.includes(qK) || n.includes(qN)
-    || toHira(n).includes(qH) || toKata(n).includes(qK);
+  // 名前そのものとの照合
+  const n = normalize(name);
+  if (n.includes(qN) || n.includes(qH) || n.includes(qK)) return true;
+  // よみがなとの照合（ひらがな・カタカナ相互変換）
+  if (yomi) {
+    const y = normalize(yomi);
+    if (y.includes(qH) || y.includes(qK) || y.includes(qN)) return true;
+    const yH = normalize(toHira(yomi));
+    const yK = normalize(toKata(yomi));
+    if (yH.includes(qH) || yK.includes(qK)) return true;
+  }
+  return false;
 }
 
 // ========== フィルタ・検索 ==========
 function getFiltered() {
   return persons.filter(p => {
-    const nameOk = matchName(p.name, searchQuery);
+    const nameOk = matchName(p.name, p.yomi || '', searchQuery);
     const tagOk = currentFilter === 'ALL' || (p.tags || []).includes(currentFilter);
     return nameOk && tagOk;
   });
@@ -662,12 +675,14 @@ function openModal(id = null) {
   const modal = document.getElementById('modalOverlay');
   document.getElementById('modalTitle').textContent = id ? '人物を編集' : '人物を追加';
   document.getElementById('nameInput').value = '';
+  document.getElementById('yomiInput').value = '';
   document.getElementById('newTagInput').value = '';
 
   if (id) {
     const p = persons.find(x => x.id === id);
     if (p) {
       document.getElementById('nameInput').value = p.name;
+      document.getElementById('yomiInput').value = p.yomi || '';
       selectedTags = [...(p.tags || [])];
       urlFields = (p.urls || []).map(u => ({ memo: u.memo || '', url: u.url || '' }));
     }
@@ -758,18 +773,20 @@ function updateUrlField(i, key, val) {
 function savePerson() {
   const name = document.getElementById('nameInput').value.trim();
   if (!name) { alert('名前を入力してください'); return; }
+  const yomi = document.getElementById('yomiInput').value.trim();
 
   const validUrls = urlFields.filter(u => u.url.trim());
 
   if (editingId) {
     const idx = persons.findIndex(p => p.id === editingId);
     if (idx !== -1) {
-      persons[idx] = { ...persons[idx], name, tags: [...selectedTags], urls: validUrls };
+      persons[idx] = { ...persons[idx], name, yomi, tags: [...selectedTags], urls: validUrls };
     }
   } else {
     persons.push({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2),
       name,
+      yomi,
       tags: [...selectedTags],
       urls: validUrls
     });
