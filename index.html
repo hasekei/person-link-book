@@ -441,6 +441,63 @@
     .confirm-btns { display: flex; gap: 10px; }
 
     .highlight { background: #fef08a; border-radius: 2px; }
+
+    /* タグフィルター行 */
+    .tag-filter-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tag-filter-scroll { flex: 1; }
+    .tag-mgmt-btn {
+      flex-shrink: 0;
+      padding: 5px 10px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 20px;
+      background: white;
+      color: var(--gray-500);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+      position: relative;
+    }
+    .tag-mgmt-btn:active { background: var(--gray-50); }
+    .unused-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      width: 16px;
+      height: 16px;
+      background: var(--danger);
+      color: white;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* タグ管理モーダル */
+    .tag-mgmt-list { display: flex; flex-direction: column; padding: 0 20px 16px; gap: 8px; }
+    .tag-mgmt-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 14px;
+      background: var(--gray-50);
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--gray-200);
+    }
+    .tag-mgmt-item.unused { border-color: var(--danger); background: var(--danger-light); }
+    .tag-mgmt-item-left { display: flex; align-items: center; gap: 10px; }
+    .tag-mgmt-name { font-size: 15px; font-weight: 600; }
+    .tag-mgmt-count { font-size: 12px; color: var(--gray-400); }
+    .tag-mgmt-item.unused .tag-mgmt-count { color: var(--danger); font-weight: 600; }
+    .tag-mgmt-empty { text-align: center; padding: 32px 20px; color: var(--gray-400); font-size: 14px; }
+    .tag-mgmt-actions { padding: 0 20px 8px; }
   </style>
 </head>
 <body>
@@ -455,8 +512,14 @@
     <span class="search-icon">🔍</span>
     <input type="search" class="search-input" id="searchInput" placeholder="名前で検索（漢字・ひらがな・カタカナ）">
   </div>
-  <div class="tag-filter-scroll" id="tagFilterScroll">
-    <span class="tag-chip tag-chip-all active" data-tag="ALL" onclick="filterTag('ALL')">すべて</span>
+  <div class="tag-filter-row">
+    <div class="tag-filter-scroll" id="tagFilterScroll">
+      <span class="tag-chip tag-chip-all active" data-tag="ALL" onclick="filterTag('ALL')">すべて</span>
+    </div>
+    <button class="tag-mgmt-btn" id="tagMgmtBtn" onclick="openTagMgmt()">
+      タグ管理
+      <span class="unused-badge" id="unusedBadge" style="display:none"></span>
+    </button>
   </div>
 </div>
 
@@ -506,6 +569,20 @@
   </div>
 </div>
 
+<!-- タグ管理モーダル -->
+<div class="modal-overlay" id="tagMgmtOverlay" onclick="handleTagMgmtOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">タグ管理</span>
+      <button class="btn-icon" onclick="closeTagMgmt()">✕</button>
+    </div>
+    <div class="tag-mgmt-actions">
+      <button class="btn-sm btn-sm-danger" id="deleteUnusedBtn" onclick="deleteUnusedTags()" style="display:none">未使用タグを一括削除</button>
+    </div>
+    <div class="tag-mgmt-list" id="tagMgmtList"></div>
+  </div>
+</div>
+
 <!-- 削除確認ダイアログ -->
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-dialog">
@@ -538,7 +615,7 @@ function saveTags(tags) {
 
 let persons = load();
 let allTags = loadTags();
-let currentFilter = 'ALL';
+let activeFilters = []; // 空=すべて、複数可（AND検索）
 let searchQuery = '';
 let editingId = null;
 let deleteTargetId = null;
@@ -578,7 +655,8 @@ function matchName(name, yomi, q) {
 function getFiltered() {
   return persons.filter(p => {
     const nameOk = matchName(p.name, p.yomi || '', searchQuery);
-    const tagOk = currentFilter === 'ALL' || (p.tags || []).includes(currentFilter);
+    const tagOk = activeFilters.length === 0
+      || activeFilters.every(t => (p.tags || []).includes(t));
     return nameOk && tagOk;
   });
 }
@@ -586,14 +664,17 @@ function getFiltered() {
 // ========== レンダリング ==========
 function renderTagFilters() {
   const scroll = document.getElementById('tagFilterScroll');
-  scroll.innerHTML = `<span class="tag-chip tag-chip-all${currentFilter==='ALL'?' active':''}" data-tag="ALL" onclick="filterTag('ALL')">すべて</span>`;
+  const allActive = activeFilters.length === 0;
+  scroll.innerHTML = `<span class="tag-chip tag-chip-all${allActive?' active':''}" onclick="filterTag('ALL')">すべて</span>`;
   allTags.forEach(tag => {
     const chip = document.createElement('span');
-    chip.className = 'tag-chip' + (currentFilter === tag ? ' active' : '');
+    chip.className = 'tag-chip' + (activeFilters.includes(tag) ? ' active' : '');
     chip.textContent = tag;
     chip.onclick = () => filterTag(tag);
     scroll.appendChild(chip);
   });
+  // 未使用バッジ更新
+  updateUnusedBadge();
 }
 
 function escapeHtml(s) {
@@ -661,8 +742,99 @@ function render() {
 
 // ========== フィルタ操作 ==========
 function filterTag(tag) {
-  currentFilter = tag;
+  if (tag === 'ALL') {
+    activeFilters = [];
+  } else {
+    const idx = activeFilters.indexOf(tag);
+    if (idx === -1) {
+      activeFilters.push(tag);
+    } else {
+      activeFilters.splice(idx, 1);
+    }
+  }
   render();
+}
+
+// ========== タグ管理 ==========
+function getUnusedTags() {
+  const usedTags = new Set(persons.flatMap(p => p.tags || []));
+  return allTags.filter(t => !usedTags.has(t));
+}
+
+function updateUnusedBadge() {
+  const unused = getUnusedTags();
+  const badge = document.getElementById('unusedBadge');
+  if (unused.length > 0) {
+    badge.textContent = unused.length;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function openTagMgmt() {
+  renderTagMgmtList();
+  document.getElementById('tagMgmtOverlay').classList.add('open');
+}
+
+function closeTagMgmt() {
+  document.getElementById('tagMgmtOverlay').classList.remove('open');
+}
+
+function handleTagMgmtOverlayClick(e) {
+  if (e.target === document.getElementById('tagMgmtOverlay')) closeTagMgmt();
+}
+
+function renderTagMgmtList() {
+  const list = document.getElementById('tagMgmtList');
+  const deleteUnusedBtn = document.getElementById('deleteUnusedBtn');
+  const unused = getUnusedTags();
+  deleteUnusedBtn.style.display = unused.length > 0 ? 'inline-flex' : 'none';
+
+  if (allTags.length === 0) {
+    list.innerHTML = '<div class="tag-mgmt-empty">タグがありません</div>';
+    return;
+  }
+
+  const usedCount = tag => persons.filter(p => (p.tags || []).includes(tag)).length;
+  list.innerHTML = allTags.map(tag => {
+    const count = usedCount(tag);
+    const isUnused = count === 0;
+    return `
+      <div class="tag-mgmt-item${isUnused ? ' unused' : ''}">
+        <div class="tag-mgmt-item-left">
+          <div class="tag-mgmt-name">${escapeHtml(tag)}</div>
+          <div class="tag-mgmt-count">${isUnused ? '未使用' : `${count}人`}</div>
+        </div>
+        <button class="btn-sm btn-sm-danger" onclick="deleteTagFromMgmt('${escapeHtml(tag)}')">削除</button>
+      </div>`;
+  }).join('');
+}
+
+function deleteTagFromMgmt(tag) {
+  if (!confirm(`タグ「${tag}」を削除しますか？\n（このタグが付いている人物からも外れます）`)) return;
+  allTags = allTags.filter(t => t !== tag);
+  saveTags(allTags);
+  persons = persons.map(p => ({ ...p, tags: (p.tags || []).filter(t => t !== tag) }));
+  save(persons);
+  // フィルターからも除去
+  activeFilters = activeFilters.filter(t => t !== tag);
+  selectedTags = selectedTags.filter(t => t !== tag);
+  renderTagMgmtList();
+  renderTagFilters();
+  renderList();
+}
+
+function deleteUnusedTags() {
+  const unused = getUnusedTags();
+  if (unused.length === 0) return;
+  if (!confirm(`未使用の${unused.length}件のタグをまとめて削除しますか？`)) return;
+  allTags = allTags.filter(t => !unused.includes(t));
+  saveTags(allTags);
+  activeFilters = activeFilters.filter(t => !unused.includes(t));
+  selectedTags = selectedTags.filter(t => !unused.includes(t));
+  renderTagMgmtList();
+  renderTagFilters();
 }
 
 document.getElementById('searchInput').addEventListener('input', e => {
@@ -744,15 +916,8 @@ function renderTagSelectArea() {
 }
 
 function deleteTag(tag) {
-  if (!confirm(`タグ「${tag}」を削除しますか？\n（このタグが付いている人物からも外れます）`)) return;
-  allTags = allTags.filter(t => t !== tag);
-  saveTags(allTags);
-  // 全人物からも該当タグを除去
-  persons = persons.map(p => ({ ...p, tags: (p.tags || []).filter(t => t !== tag) }));
-  save(persons);
-  selectedTags = selectedTags.filter(t => t !== tag);
+  deleteTagFromMgmt(tag);
   renderTagSelectArea();
-  renderTagFilters();
 }
 
 function toggleTag(tag) {
@@ -853,6 +1018,10 @@ function confirmDelete() {
   if (deleteTargetId) {
     persons = persons.filter(p => p.id !== deleteTargetId);
     save(persons);
+    // 削除後に無効になったフィルターを解除
+    activeFilters = activeFilters.filter(t =>
+      persons.some(p => (p.tags || []).includes(t))
+    );
     closeConfirm();
     render();
   }
